@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <title>Okul Ders ve Teneffüs Takip (Deneysel Tarih + LGS Simülasyonu)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    html, body { height:100%; margin:0; padding:0; }
+    body {
+      min-height:100vh; width:100vw; height:100vh;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg,#89f7fe 0%,#66a6ff 100%);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .container {
+      width:100vw; height:100vh; display:flex; flex-direction:column;
+      align-items:center; justify-content:flex-start;
+      background: rgba(255,255,255,0.82);
+      padding:0; position:relative;
+    }
+    h1 { margin:18px 0 8px 0; font-size:2.0em; color:#2376ae; font-weight:700; }
+    .info {
+      font-size:1.5em; margin:12px 0; color:#184e77; font-weight:600;
+      background:linear-gradient(90deg,#a1c4fd 0%,#c2e9fb 100%);
+      border-radius:12px; padding:14px 12px; width:90vw; max-width:700px;
+      min-height:70px; display:flex; flex-direction:column; justify-content:center;
+    }
+    .clock { font-size:1.15em; color:#2376ae; margin-bottom:6px; font-weight:600; }
+    .tarih { font-size:1em; color:#2376ae; margin-top:14px; margin-bottom:6px; opacity:0.7; }
+    .gun { font-size:1.05em; color:#184e77; margin-bottom:8px; font-weight:600; }
+    .saniyeler { font-size:1.4em; color:#2376ae; font-weight:700; }
+    .lgs-box {
+      margin-top:10px; width:90vw; max-width:700px;
+      background:linear-gradient(90deg,#fff2b8 0%,#ffd48a 100%);
+      border-radius:12px; padding:12px 14px; color:#6b3e00; font-weight:700;
+      display:flex; flex-direction:column; align-items:center;
+    }
+    .lgs-title { font-size:1.05em; font-weight:800; color:#6b3e00; margin-bottom:6px; }
+    .lgs-time { font-size:1.4em; color:#6b3e00; }
+    .menu-btn {
+      background:#2376ae; color:#fff; padding:10px 20px; border:none; border-radius:14px;
+      font-size:1.02em; font-weight:600; cursor:pointer; position:absolute;
+      bottom:38px; left:50%; transform:translateX(-50%); z-index:2;
+    }
+    .menu-btn:hover { background:#184e77; }
+    .ders-menu {
+      position:fixed; top:0; left:0; width:100vw; height:100vh;
+      background:rgba(248,252,255,0.99); z-index:99; display:none; overflow:auto;
+    }
+    .ders-menu .menu-header { display:flex; justify-content:flex-start; align-items:center; padding:18px; position:relative; }
+    .ders-menu .menu-title { font-size:1.3em; color:#184e77; font-weight:700; margin:0 auto; }
+    .close-btn {
+      background:#e74c3c; color:#fff; border:none; border-radius:10px; padding:6px 15px;
+      position:absolute; left:10px; top:10px; cursor:pointer;
+    }
+    .table { margin:0 auto 24px auto; font-size:1.02em; width:90vw; max-width:600px; border-collapse:separate; border-spacing:0 7px; }
+    .table th, .table td { padding:7px 0; text-align:center; border-radius:7px; }
+    .table th { background:#2376ae; color:#fff; font-weight:700; }
+    .ders-row { background:#e3f6fd; }
+    .tenefus-row { background:#eaf6e9; }
+
+    /* Deneysel mod açılır buton + menü */
+    .deneysel-btn {
+      background:#2376ae; color:#fff; border:none; border-radius:11px; padding:7px 19px;
+      position:fixed; top:18px; right:26px; z-index:201; cursor:pointer;
+    }
+    .deneysel-menu {
+      position:fixed; top:16px; right:26px; background:#fff; border-radius:13px; padding:14px 19px;
+      z-index:202; min-width:260px; display:none; flex-direction:column; opacity:0.97;
+    }
+    .deneysel-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+    .deneysel-row label { color:#184e77; font-weight:500; }
+    .deneysel-row input[type="date"],
+    .deneysel-row input[type="number"],
+    .deneysel-row input[type="time"] {
+      font-size:1em; padding:4px 6px; border-radius:6px; border:1px solid #c2e9fb;
+    }
+    .deneysel-set, .deneysel-reset, .deneysel-close {
+      background:#2376ae; color:#fff; border:none; border-radius:10px; padding:5px 12px; cursor:pointer; margin-top:6px;
+    }
+    .deneysel-reset { background:#e74c3c; }
+    .deneysel-close { position:absolute; top:8px; right:9px; background:#e74c3c; }
+
+    @media (max-width:700px) {
+      .info { font-size:1.02em; }
+      .table { font-size:0.95em; width:99vw; }
+      .lgs-time { font-size:1.1em; }
+      .deneysel-menu { min-width:180px; }
+    }
+    @media (max-width:500px) {
+      h1 { font-size:1.2em; }
+      .deneysel-menu { min-width:150px; padding:10px; }
+    }
+  </style>
+</head>
+<body>
+  <button class="deneysel-btn" id="deneyselBtn">Deneysel Mod</button>
+
+  <div class="deneysel-menu" id="deneyselMenu">
+    <button class="deneysel-close" id="deneyselCloseBtn">Kapat</button>
+    <span style="font-weight:800; color:#2376ae; margin-bottom:8px;">Deneysel Mod</span>
+
+    <!-- Tarih seçimi: tam tarih ve saat -->
+    <div class="deneysel-row">
+      <label for="deneyselTarih">Tarih</label>
+      <input type="date" id="deneyselTarih">
+      <label for="deneyselSaat">Saat</label>
+      <input type="time" id="deneyselSaat" step="1" value="13:10:00">
+    </div>
+
+    <button class="deneysel-set" id="deneyselSetBtn">Ayarla</button>
+    <button class="deneysel-reset" id="deneyselResetBtn">Gerçek Moda Dön</button>
+    <div id="deneyselStatus" style="margin-top:8px; color:#e74c3c; display:none;"></div>
+  </div>
+
+  <div class="container">
+    <div class="tarih" id="tarih"></div>
+    <div class="gun" id="gun"></div>
+    <h1>Okul Ders ve Teneffüs Takip Sistemi</h1>
+    <div class="clock" id="clock"></div>
+    <div class="info" id="info"></div>
+
+    <div class="lgs-box" id="lgsBox" title="LGS sınavına kalan süre (21 Haziran 2026 09:00)">
+      <div class="lgs-title">LGS'ye Kalan Süre (21.06.2026 09:00)</div>
+      <div class="lgs-time" id="lgsTime">Yükleniyor...</div>
+    </div>
+
+    <button class="menu-btn" id="menuBtn">Ders Saatleri</button>
+  </div>
+
+  <div class="ders-menu" id="dersMenu">
+    <div class="menu-header">
+      <button class="close-btn" id="closeBtn">Kapat</button>
+      <span class="menu-title">Ders Saatleri</span>
+    </div>
+    <table class="table" id="table">
+      <thead>
+        <tr><th>Başlangıç</th><th>Bitiş</th><th>Tür</th></tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    // ====== Ayarlar ======
+    const ileriSaniye = 90; // 1.5 dakika ileri (90s)
+    const zilSuresi = 90;   // zil 1.5 dk kala çalsın (90s)
+    const ilkDersBaslangic = { saat:13, dakika:10, saniye:0 };
+    const dersSuresi = 30 * 60; // saniye
+    const tenefusSuresi = 10 * 60; // saniye
+    const toplamDersSayisi = 7;
+    const gunler = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+    // LGS hedef (yerel saat)
+    const lgsTarget = new Date(2026,5,21,9,0,0); // 21 Haziran 2026 09:00 (ay=5)
+
+    // ====== Saat tabloları (saniye bazlı) ======
+    function saatleriHazirla() {
+      let saatler = [];
+      let baslangicSaniye = ilkDersBaslangic.saat*3600 + ilkDersBaslangic.dakika*60 + ilkDersBaslangic.saniye + ileriSaniye;
+      for (let i=1;i<=toplamDersSayisi;i++) {
+        // Dersler ders başlangıcından 1.5 dk (90s) önce başlasın
+        saatler.push({
+          tur: "Ders",
+          no: i,
+          basla: baslangicSaniye - ileriSaniye,
+          bit: baslangicSaniye + dersSuresi
+        });
+        if (i < toplamDersSayisi) {
+          saatler.push({
+            tur: "Teneffüs",
+            no: i,
+            basla: baslangicSaniye + dersSuresi,
+            bit: baslangicSaniye + dersSuresi + tenefusSuresi
+          });
+        }
+        baslangicSaniye += dersSuresi + tenefusSuresi;
+      }
+      return saatler;
+    }
+    let saatler = saatleriHazirla();
+
+    function tabloYap() {
+      let html = "";
+      saatler.forEach(s=>{
+        let baslaSaat = Math.floor(s.basla/3600)%24;
+        let baslaDak = Math.floor((s.basla%3600)/60);
+        let baslaSan = s.basla%60;
+        let bitSaat = Math.floor(s.bit/3600)%24;
+        let bitDak = Math.floor((s.bit%3600)/60);
+        let bitSan = s.bit%60;
+        html += `<tr class="${s.tur==="Ders"?"ders-row":"tenefus-row"}">
+          <td>${String(baslaSaat).padStart(2,"0")}:${String(baslaDak).padStart(2,"0")}:${String(baslaSan).padStart(2,"0")}</td>
+          <td>${String(bitSaat).padStart(2,"0")}:${String(bitDak).padStart(2,"0")}:${String(bitSan).padStart(2,"0")}</td>
+          <td>${s.tur} ${s.tur==="Ders"? s.no+". Ders" : s.no+". Teneffüs"}</td>
+        </tr>`;
+      });
+      document.getElementById('table-body').innerHTML = html;
+    }
+    tabloYap();
+
+    // ====== Deneysel: tam tarih seçimi ve ilerleme ======
+    let deneyselModAktif = false;
+    let deneyselDate = null; // Date objesi; deneysel mod aktifse bu ilerletilir
+
+    function pad(n){ return n<10 ? "0"+n : n; }
+
+    // İleri 1 saniye ile tarih/saat ilerlet
+    function deneyselIlerle() {
+      if (!deneyselModAktif || !deneyselDate) return;
+      deneyselDate = new Date(deneyselDate.getTime() + 1000);
+    }
+
+    // ====== LGS sayaç (artık deneysel moddan etkilenir) ======
+    function updateLGS(){
+      // Simüle edilmiş "şu an" kullan (deneysel moddaysa deneyselDate, değilse gerçek zaman)
+      const nowForLGS = (deneyselModAktif && deneyselDate) ? new Date(deneyselDate.getTime()) : new Date();
+      let diff = lgsTarget.getTime() - nowForLGS.getTime();
+      const el = document.getElementById('lgsTime');
+      if (diff <= 0) {
+        el.textContent = "LGS tamamlandı veya zamanı geçti.";
+        return;
+      }
+      let saniye = Math.floor(diff / 1000);
+      const gun = Math.floor(saniye / (24*3600)); saniye -= gun*24*3600;
+      const saat = Math.floor(saniye / 3600); saniye -= saat*3600;
+      const dakika = Math.floor(saniye / 60); saniye -= dakika*60;
+      el.textContent = `${gun} gün ${pad(saat)} saat ${pad(dakika)} dakika ${pad(saniye)} saniye`;
+    }
+
+    // ====== Genel güncelleme: ekran bilgileri ======
+    function guncelle(){
+      const nowReal = new Date();
+      let now = (deneyselModAktif && deneyselDate) ? new Date(deneyselDate.getTime()) : nowReal;
+      // Tarih gösterimi
+      document.getElementById('tarih').textContent = deneyselModAktif ? 
+        `Deneysel Tarih: ${pad(now.getDate())}.${pad(now.getMonth()+1)}.${now.getFullYear()}` :
+        `Tarih: ${pad(now.getDate())}.${pad(now.getMonth()+1)}.${now.getFullYear()}`;
+      const gunIndex = now.getDay();
+      document.getElementById('gun').innerHTML = `Bugün: <b>${gunler[gunIndex]}</b>`;
+      document.getElementById('clock').textContent = `Şu anki saat: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+      // Hafta sonu kontrolü
+      if (gunIndex === 0 || gunIndex === 6) {
+        document.getElementById('info').innerHTML = `Okul yok`;
+        return;
+      }
+
+      // toplam saniye (gün içi)
+      const toplamSaniye = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds();
+
+      // Ders başlamadıysa
+      const ilkDersBasla = saatler[0].basla;
+      if (toplamSaniye < ilkDersBasla) {
+        const kalan = ilkDersBasla - toplamSaniye;
+        const k_dak = Math.floor(kalan/60), k_san = kalan % 60;
+        document.getElementById('info').innerHTML = `Dersler henüz başlamadı.<br>İlk dersin başlamasına <span class="saniyeler">${k_dak} dakika ${k_san} saniye</span> kaldı.`;
+        return;
+      }
+
+      // Dersler bitti mi?
+      const sonBitis = saatler[saatler.length-1].bit;
+      if (toplamSaniye >= sonBitis) {
+        document.getElementById('info').innerHTML = `Tüm dersler bitti.<br>Bir sonraki okul günü için görüşmek üzere!`;
+        return;
+      }
+
+      // Hangi durumda?
+      for (let i=0;i<saatler.length;i++){
+        const s = saatler[i];
+        if (toplamSaniye >= s.basla && toplamSaniye < s.bit) {
+          const kalan = s.bit - toplamSaniye;
+          const k_dak = Math.floor(kalan/60), k_san = kalan % 60;
+          if (s.tur === "Ders") {
+            document.getElementById('info').innerHTML = `${s.no}. derstesiniz.<br>Teneffüse <span class="saniyeler">${k_dak} dakika ${k_san} saniye</span> kaldı.`;
+          } else {
+            // teneffüs: zil için kalan (teneffüs bitimine zilSuresi kala çalacak)
+            const zilZaman = s.bit - zilSuresi;
+            const zilKalan = zilZaman - toplamSaniye;
+            if (zilKalan > 0) {
+              const z_dak = Math.floor(zilKalan/60), z_san = zilKalan%60;
+              document.getElementById('info').innerHTML =
+                `${s.no}. teneffüstesiniz.<br>Teneffüsün bitmesine <span class="saniyeler">${k_dak} dakika ${k_san} saniye</span> kaldı.<br>Öğrenci zilinin çalmasına <span class="saniyeler">${z_dak} dakika ${z_san} saniye</span> var.`;
+            } else if ((s.bit - toplamSaniye) > 0) {
+              document.getElementById('info').innerHTML =
+                `${s.no}. teneffüstesiniz.<br>Teneffüsün bitmesine <span class="saniyeler">${k_dak} dakika ${k_san} saniye</span> kaldı.<br><span style="color:#e74c3c;font-weight:bold;">Zil çalıyor!</span>`;
+            } else {
+              document.getElementById('info').innerHTML =
+                `${s.no}. teneffüstesiniz.<br>Teneffüsün bitmesine <span class="saniyeler">${k_dak} dakika ${k_san} saniye</span> kaldı.`;
+            }
+          }
+          return;
+        }
+      }
+    }
+
+    // ====== Interval: deneysel ilerletme + güncelleme + LGS ======
+    setInterval(()=>{ if (deneyselModAktif) deneyselIlerle(); guncelle(); updateLGS(); }, 1000);
+
+    // ====== Menü açma/kapama ======
+    const menuBtn = document.getElementById('menuBtn');
+    const dersMenu = document.getElementById('dersMenu');
+    const closeBtn = document.getElementById('closeBtn');
+    menuBtn.onclick = ()=> dersMenu.style.display = 'block';
+    closeBtn.onclick = ()=> dersMenu.style.display = 'none';
+    document.addEventListener('keydown', e=> { if (e.key === "Escape") { dersMenu.style.display='none'; deneyselMenu.style.display='none'; } });
+
+    // ====== Deneysel menü kontrol ======
+    const deneyselBtn = document.getElementById('deneyselBtn');
+    const deneyselMenu = document.getElementById('deneyselMenu');
+    const deneyselCloseBtn = document.getElementById('deneyselCloseBtn');
+    const deneyselTarihInput = document.getElementById('deneyselTarih');
+    const deneyselSaatInput = document.getElementById('deneyselSaat');
+    const deneyselSetBtn = document.getElementById('deneyselSetBtn');
+    const deneyselResetBtn = document.getElementById('deneyselResetBtn');
+    const deneyselStatus = document.getElementById('deneyselStatus');
+
+    // butonlar
+    deneyselBtn.onclick = ()=> { deneyselMenu.style.display = 'flex'; }
+    deneyselCloseBtn.onclick = ()=> { deneyselMenu.style.display = 'none'; }
+
+    // tarih input default: bugünün tarih (yyyy-mm-dd)
+    (function setDefaultDate(){
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      deneyselTarihInput.value = `${yyyy}-${mm}-${dd}`;
+    })();
+
+    function showDeneyselStatus(show, text){
+      if (show) { deneyselStatus.style.display='block'; deneyselStatus.textContent = text; }
+      else { deneyselStatus.style.display='none'; deneyselStatus.textContent=''; }
+    }
+
+    deneyselSetBtn.onclick = ()=>{
+      const tarihVal = deneyselTarihInput.value; // yyyy-mm-dd
+      const saatVal = deneyselSaatInput.value;   // HH:MM:SS or HH:MM
+      if (!tarihVal || !saatVal) { showDeneyselStatus(true, "Tarih ve saat girin."); return; }
+      // parse date + time
+      const [y,m,d] = tarihVal.split('-').map(x=>parseInt(x,10));
+      const timeParts = saatVal.split(':').map(x=>parseInt(x,10));
+      const hh = timeParts[0]||0, min = timeParts[1]||0, ss = timeParts[2]||0;
+      const dt = new Date(y, m-1, d, hh, min, ss);
+      if (isNaN(dt.getTime())) { showDeneyselStatus(true, "Geçersiz tarih/saat."); return; }
+      deneyselDate = dt;
+      deneyselModAktif = true;
+      showDeneyselStatus(true, `Deneysel Mod aktif: ${dt.toLocaleString()}`);
+      // update immediately
+      guncelle();
+      updateLGS();
+    };
+
+    deneyselResetBtn.onclick = ()=>{
+      deneyselModAktif = false;
+      deneyselDate = null;
+      showDeneyselStatus(false, "");
+      guncelle();
+      updateLGS();
+    };
+
+    // İlk çağrular
+    guncelle();
+    updateLGS();
+  </script>
+</body>
+</html><style></style><script></script>
